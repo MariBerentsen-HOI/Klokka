@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Lær klokka</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap">
+<style>
+  :root {
+    --bg1: #f1e9fb;
+    --bg2: #e2d3f6;
+    --card: #fbf8ff;
+    --lilac: #b79bdb;
+    --lilac-deep: #7a5aa6;
+    --lilac-ink: #4b3573;
+    --lilac-soft: #ede3fa;
+    --line: #d9c7f0;
+    --ok: #2f9e7a;
+    --ok-bg: #dcf5ea;
+    --bad: #c2536b;
+    --bad-bg: #fbe3ea;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg1);
+    background-image: linear-gradient(160deg, var(--bg1) 0%, var(--bg2) 100%);
+    background-attachment: fixed;
+    color: var(--lilac-ink);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 16px 14px 28px;
+  }
+  .app { width: 100%; max-width: 440px; }
+  header { text-align: center; margin: 4px 0 14px; }
+  h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.5px; color: var(--lilac-ink); }
+  .sub { font-size: 14px; color: var(--lilac-deep); font-weight: 500; margin-top: 2px; }
+
+  .seg {
+    display: flex; gap: 6px; background: rgba(255,255,255,.55);
+    padding: 5px; border-radius: 16px; margin-bottom: 10px;
+    border: 1px solid var(--line);
+  }
+  .seg button {
+    flex: 1; border: 0; background: transparent; color: var(--lilac-deep);
+    font: 700 15px 'Nunito', sans-serif; padding: 10px 6px; border-radius: 12px; cursor: pointer;
+    transition: background .2s, color .2s;
+  }
+  .seg button.on { background: var(--lilac-deep); color: #fff; }
+  .seg.view button.on { background: var(--lilac); }
+
+  .stage {
+    background: var(--card); border: 1px solid var(--line); border-radius: 28px;
+    padding: 18px 16px 20px; box-shadow: 0 10px 30px rgba(122,90,166,.16);
+  }
+  .watch-wrap { display: flex; justify-content: center; margin: -6px 0 4px; }
+  svg.watch { width: 100%; max-width: 270px; height: auto; display: block; }
+  .hand { transform-origin: 160px 220px; transition: transform .8s cubic-bezier(.3,1.25,.5,1); }
+  svg.watch.dragging .hand { transition: none; }
+  svg.watch.drag-on { touch-action: none; cursor: grab; }
+  svg.watch.dragging { cursor: grabbing; }
+  .grip { opacity: 0; transition: opacity .2s; }
+  svg.watch.drag-on .grip { opacity: 1; }
+  .bigtime { display: none; text-align: center; font: 800 52px 'Nunito', sans-serif; color: var(--lilac-deep); font-variant-numeric: tabular-nums; line-height: 1.1; margin: 2px 0; }
+  .bigtime.show { display: block; }
+  .dragtip { display: none; text-align: center; font-size: 13px; color: var(--lilac-deep); font-weight: 500; margin-bottom: 12px; }
+  .dragtip.show { display: block; }
+
+  .question { text-align: center; font-size: 19px; font-weight: 800; margin: 4px 0 2px; }
+  .hint { text-align: center; font-size: 14px; color: var(--lilac-deep); font-weight: 500; min-height: 20px; margin-bottom: 12px; }
+
+  .options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .opt {
+    border: 2px solid var(--line); background: #fff; color: var(--lilac-ink);
+    font: 800 26px 'Nunito', sans-serif; padding: 16px 8px; border-radius: 18px; cursor: pointer;
+    transition: transform .12s, background .2s, border-color .2s;
+    font-variant-numeric: tabular-nums;
+  }
+  .opt.txt { font-size: 18px; padding: 18px 8px; line-height: 1.2; }
+  .opt:active { transform: scale(.97); }
+  .opt.right { background: var(--ok-bg); border-color: var(--ok); color: #1d6f53; }
+  .opt.wrong { background: var(--bad-bg); border-color: var(--bad); color: #8f2f47; }
+  .opt[disabled] { cursor: default; }
+
+  .setter { display: none; }
+  .setter.show { display: block; }
+  .row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 12px; }
+  .row .lbl { font-size: 14px; font-weight: 700; color: var(--lilac-deep); min-width: 64px; text-align: right; }
+  .step {
+    width: 48px; height: 48px; border-radius: 16px; border: 2px solid var(--line); background: #fff;
+    color: var(--lilac-deep); font: 800 24px 'Nunito', sans-serif; cursor: pointer;
+  }
+  .step:active { transform: scale(.94); }
+  .val { font: 800 30px 'Nunito', sans-serif; min-width: 70px; text-align: center; font-variant-numeric: tabular-nums; }
+  .chips { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; }
+  .chip {
+    flex: 1; max-width: 80px; border: 2px solid var(--line); background: #fff; color: var(--lilac-deep);
+    font: 800 17px 'Nunito', sans-serif; padding: 10px 0; border-radius: 14px; cursor: pointer;
+  }
+  .chip.on { background: var(--lilac); border-color: var(--lilac); color: #fff; }
+
+  .primary {
+    width: 100%; border: 0; background: var(--lilac-deep); color: #fff;
+    font: 800 17px 'Nunito', sans-serif; padding: 15px; border-radius: 16px; cursor: pointer;
+  }
+  .primary:active { transform: scale(.98); }
+  .primary.soft { background: var(--lilac-soft); color: var(--lilac-deep); }
+
+  .feedback {
+    margin-top: 14px; padding: 12px 14px; border-radius: 16px; font-size: 15px; font-weight: 700;
+    text-align: center; display: none; line-height: 1.4;
+  }
+  .feedback.show { display: block; }
+  .feedback.ok { background: var(--ok-bg); color: #1d6f53; }
+  .feedback.no { background: var(--bad-bg); color: #8f2f47; }
+  .next { margin-top: 10px; display: none; }
+  .next.show { display: block; }
+
+  .levels { margin-top: 14px; }
+  .levels .cap { font-size: 12px; font-weight: 700; color: var(--lilac-deep); text-align: center; margin-bottom: 6px; letter-spacing: .3px; }
+  .lv { display: flex; gap: 6px; }
+  .lv button {
+    flex: 1; border: 1.5px solid var(--line); background: rgba(255,255,255,.7); color: var(--lilac-deep);
+    font: 700 14px 'Nunito', sans-serif; padding: 9px 4px; border-radius: 12px; cursor: pointer;
+  }
+  .lv button.on { background: var(--lilac-deep); border-color: var(--lilac-deep); color: #fff; }
+
+  .score { display: flex; justify-content: center; gap: 22px; margin-top: 16px; font-weight: 800; font-size: 15px; color: var(--lilac-deep); }
+  .score b { color: var(--lilac-ink); font-size: 19px; }
+  .star { color: #e7a93b; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Lær klokka</h1>
+    <div class="sub">Hel, halv og kvart</div>
+  </header>
+
+  <div class="seg view" role="group" aria-label="Velg visning">
+    <button id="viewAnalog" class="on" type="button">Analog klokke</button>
+    <button id="viewDigital" type="button">Digital 24 timer</button>
+  </div>
+  <div class="seg" role="group" aria-label="Velg oppgavetype">
+    <button id="modeRead" class="on" type="button">Les klokka</button>
+    <button id="modeSet" type="button">Still klokka</button>
+  </div>
+
+  <main class="stage">
+    <div class="watch-wrap">
+      <svg class="watch" id="watch" viewBox="0 0 320 440" role="img" aria-label="Smartklokke i lilla">
+        <defs>
+          <radialGradient id="face" cx="50%" cy="42%" r="62%">
+            <stop offset="0%" stop-color="#3e3c8f"/>
+            <stop offset="60%" stop-color="#232466"/>
+            <stop offset="100%" stop-color="#14163f"/>
+          </radialGradient>
+          <linearGradient id="num" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#ff9ad5"/>
+            <stop offset="55%" stop-color="#c9a4ff"/>
+            <stop offset="100%" stop-color="#6fc3ff"/>
+          </linearGradient>
+          <linearGradient id="strap" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#c2a8df"/>
+            <stop offset="50%" stop-color="#d6c2ec"/>
+            <stop offset="100%" stop-color="#bfa4dd"/>
+          </linearGradient>
+          <linearGradient id="case" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#d9c6ee"/>
+            <stop offset="100%" stop-color="#a98ccc"/>
+          </linearGradient>
+        </defs>
+
+        <path d="M110 24 Q160 6 210 24 L218 124 L102 124 Z" fill="url(#strap)"/>
+        <path d="M102 316 L218 316 L210 416 Q160 434 110 416 Z" fill="url(#strap)"/>
+        <circle cx="160" cy="348" r="6" fill="#a98ccc"/>
+        <circle cx="160" cy="372" r="6" fill="#a98ccc"/>
+        <circle cx="160" cy="396" r="6" fill="#a98ccc"/>
+        <rect x="108" y="108" width="104" height="14" rx="7" fill="#b497d6" opacity=".55"/>
+
+        <rect x="272" y="196" width="16" height="26" rx="6" fill="#b89bd8" stroke="#9b7cc0" stroke-width="1.5"/>
+        <rect x="272" y="238" width="16" height="20" rx="6" fill="#b89bd8" stroke="#9b7cc0" stroke-width="1.5"/>
+
+        <circle cx="160" cy="220" r="118" fill="url(#case)" stroke="#9b7cc0" stroke-width="2"/>
+        <circle cx="160" cy="220" r="109" fill="none" stroke="#ecdff8" stroke-width="1.5" opacity=".8"/>
+        <circle cx="160" cy="220" r="104" fill="#121230"/>
+        <circle cx="160" cy="220" r="99" fill="url(#face)"/>
+
+        <g id="stars"></g>
+
+        <g id="analogG">
+          <g id="ticks"></g>
+          <g id="nums"></g>
+          <g class="hand" id="hourHand">
+            <line x1="160" y1="220" x2="160" y2="166" stroke="#ffffff" stroke-width="8" stroke-linecap="round"/>
+            <circle class="grip" cx="160" cy="166" r="11" fill="#5fd6d1" fill-opacity=".3" stroke="#5fd6d1" stroke-width="2"/>
+          </g>
+          <g class="hand" id="minHand">
+            <line x1="160" y1="220" x2="160" y2="140" stroke="#ffffff" stroke-width="5.5" stroke-linecap="round"/>
+            <circle class="grip" cx="160" cy="140" r="11" fill="#ff9ad5" fill-opacity=".3" stroke="#ff9ad5" stroke-width="2"/>
+          </g>
+          <circle cx="160" cy="220" r="8" fill="#5fd6d1"/>
+          <circle cx="160" cy="220" r="3" fill="#14163f"/>
+        </g>
+
+        <g id="digiG" style="display:none">
+          <text id="dPeriod" x="160" y="180" text-anchor="middle" font-size="15" font-weight="700" fill="#cfc2f2" font-family="Nunito, -apple-system, sans-serif">ettermiddag</text>
+          <text id="dTime" x="160" y="240" text-anchor="middle" font-size="58" font-weight="800" fill="url(#num)" font-family="Nunito, -apple-system, sans-serif" style="font-variant-numeric: tabular-nums">15:30</text>
+          <rect x="132" y="258" width="56" height="3" rx="1.5" fill="#5fd6d1" opacity=".85"/>
+          <text x="160" y="284" text-anchor="middle" font-size="12" font-weight="700" fill="#ffffff" opacity=".55" font-family="Nunito, -apple-system, sans-serif">24-timersklokke</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="question" id="question">Hva er klokka?</div>
+    <div class="bigtime" id="bigTime"></div>
+    <div class="hint" id="hint"></div>
+
+    <div id="readBox" class="options"></div>
+
+    <div id="setBox" class="setter">
+      <div class="row" id="hourRow">
+        <span class="lbl">Timer</span>
+        <button class="step" id="hMinus" type="button" aria-label="En time mindre">−</button>
+        <span class="val" id="hVal">12</span>
+        <button class="step" id="hPlus" type="button" aria-label="En time mer">+</button>
+      </div>
+      <div class="chips" id="minChips"></div>
+      <div class="dragtip" id="dragTip">Dra i viserne for å stille klokka. Den korte viser timer, den lange viser minutter.</div>
+      <button class="primary" id="checkSet" type="button">Sjekk</button>
+    </div>
+
+    <div class="feedback" id="feedback" role="status" aria-live="polite"></div>
+    <button class="primary soft next" id="nextBtn" type="button">Neste</button>
+
+    <div class="levels">
+      <div class="cap">VANSKELIGHET</div>
+      <div class="lv" id="lv">
+        <button type="button" data-l="1" class="on">Hel</button>
+        <button type="button" data-l="2">Halv</button>
+        <button type="button" data-l="3">Kvarter</button>
+      </div>
+    </div>
+
+    <div class="score">
+      <span><span class="star">★</span> <b id="sCorrect">0</b> riktige</span>
+      <span>Rekke <b id="sStreak">0</b></span>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var C = 160, CY = 220;
+  var NS = 'http://www.w3.org/2000/svg';
+  var MINS = { 1: [0], 2: [0, 30], 3: [0, 15, 30, 45] };
+  var W = ['', 'ett', 'to', 'tre', 'fire', 'fem', 'seks', 'sju', 'åtte', 'ni', 'ti', 'elleve', 'tolv'];
+
+  function el(name, attrs) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function fmt(h, m) { return h + ':' + pad(m); }
+  function fmt24(h24, m) { return pad(h24) + ':' + pad(m); }
+  function nx(h) { return h % 12 + 1; }
+  function say(h, m) {
+    if (m === 0) return 'klokka er ' + W[h];
+    if (m === 30) return 'halv ' + W[nx(h)];
+    if (m === 15) return 'kvart over ' + W[h];
+    return 'kvart på ' + W[nx(h)];
+  }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  function period(h24) {
+    if (h24 < 6) return 'om natta';
+    if (h24 < 10) return 'om morgenen';
+    if (h24 < 12) return 'på formiddagen';
+    if (h24 === 12) return 'midt på dagen';
+    if (h24 < 18) return 'på ettermiddagen';
+    return 'om kvelden';
+  }
+  // Tidsrom for avlesning av analog klokke: alle svaralternativer holdes innenfor samme del av døgnet
+  function periodRange(h24) {
+    if (h24 < 6) return { from: 0, to: 5, noun: 'natt' };
+    if (h24 < 10) return { from: 6, to: 9, noun: 'morgen' };
+    if (h24 >= 13 && h24 < 18) return { from: 13, to: 17, noun: 'ettermiddag' };
+    if (h24 >= 18) return { from: 18, to: 23, noun: 'kveld' };
+    return null;
+  }
+  function h24of(t) { return t.h % 12 + (t.pm ? 12 : 0); }
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function pick(a) { return a[rnd(a.length)]; }
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = rnd(i + 1), t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  var seed = 7;
+  function sr() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+
+  var stars = document.getElementById('stars');
+  for (var i = 0; i < 46; i++) {
+    var a = sr() * Math.PI * 2, r = Math.sqrt(sr()) * 94;
+    stars.appendChild(el('circle', {
+      cx: (C + r * Math.cos(a)).toFixed(1), cy: (CY + r * Math.sin(a)).toFixed(1),
+      r: (0.5 + sr() * 1.1).toFixed(2), fill: '#ffffff', opacity: (0.25 + sr() * 0.5).toFixed(2)
+    }));
+  }
+
+  var ticks = document.getElementById('ticks');
+  for (var t = 0; t < 60; t++) {
+    var ang = t * 6 * Math.PI / 180, big = t % 5 === 0;
+    var r1 = 95, r2 = big ? 89 : 92;
+    ticks.appendChild(el('line', {
+      x1: (C + r1 * Math.sin(ang)).toFixed(2), y1: (CY - r1 * Math.cos(ang)).toFixed(2),
+      x2: (C + r2 * Math.sin(ang)).toFixed(2), y2: (CY - r2 * Math.cos(ang)).toFixed(2),
+      stroke: '#ffffff', 'stroke-width': big ? 1.6 : 0.9, opacity: big ? 0.55 : 0.28, 'stroke-linecap': 'round'
+    }));
+  }
+
+  var nums = document.getElementById('nums');
+  for (var n = 1; n <= 12; n++) {
+    var an = n * 30 * Math.PI / 180, rr = 71;
+    var tx = el('text', {
+      x: (C + rr * Math.sin(an)).toFixed(2), y: (CY - rr * Math.cos(an)).toFixed(2),
+      'text-anchor': 'middle', dy: '.36em', fill: 'url(#num)',
+      'font-size': '25', 'font-weight': '800', 'font-family': "Nunito, -apple-system, sans-serif"
+    });
+    tx.textContent = n;
+    nums.appendChild(tx);
+  }
+
+  var hourEl = document.getElementById('hourHand');
+  var minEl = document.getElementById('minHand');
+  var analogG = document.getElementById('analogG');
+  var digiG = document.getElementById('digiG');
+  var cur = { h: 0, m: 0 };
+  function setAngle(key, node, targetDeg) {
+    var d = (((targetDeg - cur[key]) % 360) + 540) % 360 - 180;
+    cur[key] += d;
+    node.style.transform = 'rotate(' + cur[key] + 'deg)';
+  }
+  function showAnalog(h, m) {
+    setAngle('h', hourEl, (h % 12) * 30 + m * 0.5);
+    setAngle('m', minEl, m * 6);
+  }
+  function showDigital(h24, m) {
+    document.getElementById('dTime').textContent = fmt24(h24, m);
+    var p = period(h24).replace(/^(om|på) /, '');
+    document.getElementById('dPeriod').textContent = p;
+  }
+
+  var mode = 'read', view = 'analog', level = 1, answered = false;
+  var target = { h: 3, m: 0, pm: false };
+  var correct = 0, streak = 0;
+  var setH = 12, setM = 0, setH24 = 12;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var readBox = $('readBox'), setBox = $('setBox'), fb = $('feedback'), nextBtn = $('nextBtn');
+
+  function clearFeedback() {
+    fb.className = 'feedback'; fb.textContent = '';
+    nextBtn.className = 'primary soft next';
+  }
+  function feedback(ok, text) {
+    fb.className = 'feedback show ' + (ok ? 'ok' : 'no');
+    fb.textContent = text;
+    nextBtn.className = 'primary soft next show';
+  }
+  function updateScore() {
+    $('sCorrect').textContent = correct;
+    $('sStreak').textContent = streak;
+  }
+  function registerResult(ok) {
+    if (ok) { correct++; streak++; } else { streak = 0; }
+    updateScore();
+  }
+  function praise() { return pick(['Riktig', 'Helt rett', 'Flott jobba', 'Der satt den']); }
+
+  function newTarget() {
+    var prev = target.h + ':' + target.m + ':' + target.pm, t, tries = 0;
+    do {
+      t = { h: 1 + rnd(12), m: pick(MINS[level]), pm: rnd(2) === 1 };
+      tries++;
+    } while ((t.h + ':' + t.m + ':' + t.pm === prev ||
+              (mode === 'read' && view === 'analog' && !periodRange(h24of(t)))) && tries < 60);
+    target = t;
+  }
+
+  function applyView() {
+    analogG.style.display = view === 'analog' ? '' : 'none';
+    digiG.style.display = view === 'digital' ? '' : 'none';
+  }
+
+  function analogDistractors() {
+    var h24 = h24of(target), pr = periodRange(h24), pool = MINS[level];
+    var key = fmt24(h24, target.m), out = {}, list = [], guard = 0;
+    out[key] = true;
+    function inP(h) { return h >= pr.from && h <= pr.to; }
+    function add(h, m) { var k = fmt24(h, m); if (inP(h) && !out[k]) { out[k] = true; list.push(k); } }
+    // Vanlig feil: bytte om time- og minuttviser
+    var hm = target.h * 5 % 60;
+    if (level > 1 && pool.indexOf(hm) > -1) {
+      var swapH = target.m === 0 ? 12 : target.m / 5;
+      add(swapH % 12 + (target.pm ? 12 : 0), hm);
+    }
+    // Vanlig feil: lese timeviseren som neste time
+    if (target.m !== 0) add(h24 + 1, target.m);
+    while (list.length < 3 && guard < 300) {
+      guard++;
+      add(pr.from + rnd(pr.to - pr.from + 1), pick(pool));
+    }
+    return list;
+  }
+
+  function digitalDistractors() {
+    var out = {}, list = [], key = say(target.h, target.m), pool = MINS[level], guard = 0;
+    out[key] = true;
+    var special = null;
+    if (target.m === 30) special = 'halv ' + W[target.h];
+    else if (target.m === 15) special = 'kvart på ' + W[target.h];
+    else if (target.m === 45) special = 'kvart over ' + W[nx(target.h)];
+    if (special && !out[special]) { out[special] = true; list.push(special); }
+    while (list.length < 3 && guard < 300) {
+      guard++;
+      var h = target.h, m = target.m, r = rnd(3);
+      if (r === 0) h = 1 + rnd(12);
+      else if (r === 1) m = pick(pool);
+      else { h = nx(target.h); m = pick(pool); }
+      var k = say(h, m);
+      if (!out[k]) { out[k] = true; list.push(k); }
+    }
+    return list;
+  }
+
+  function renderRead() {
+    readBox.innerHTML = '';
+    var key, opts, labelFn;
+    if (view === 'analog') {
+      key = fmt24(h24of(target), target.m);
+      opts = shuffle([key].concat(analogDistractors()));
+      labelFn = function (o) { return o; };
+    } else {
+      key = say(target.h, target.m);
+      opts = shuffle([key].concat(digitalDistractors()));
+      labelFn = cap;
+    }
+    opts.forEach(function (o) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'opt' + (view === 'digital' ? ' txt' : '');
+      b.textContent = labelFn(o);
+      b.setAttribute('data-v', o);
+      b.addEventListener('click', function () { answerRead(b, o === key, key); });
+      readBox.appendChild(b);
+    });
+  }
+
+  function answerRead(btn, ok, key) {
+    if (answered) return;
+    answered = true;
+    var all = readBox.querySelectorAll('.opt');
+    for (var i = 0; i < all.length; i++) {
+      all[i].disabled = true;
+      if (all[i].getAttribute('data-v') === key) all[i].classList.add('right');
+    }
+    if (!ok) btn.classList.add('wrong');
+    registerResult(ok);
+    var phrase = say(target.h, target.m);
+    var said = target.m === 0 ? 'at ' + phrase : phrase;
+    if (view === 'analog') {
+      feedback(ok, (ok ? praise() + '. ' : 'Ikke helt. Klokka er ' + key + '. ') +
+        key + ' ' + period(h24of(target)) + ' sier vi ' + said + '.');
+    } else {
+      var t24 = fmt24(h24of(target), target.m);
+      feedback(ok, (ok ? praise() + '. ' : 'Ikke helt. ') +
+        t24 + ' sier vi ' + said + '. Den analoge klokka viser ' + fmt(target.h, target.m) + '.');
+    }
+  }
+
+  function renderChips() {
+    var box = $('minChips');
+    box.innerHTML = '';
+    [0, 15, 30, 45].forEach(function (m) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip' + (m === setM ? ' on' : '');
+      b.textContent = ':' + pad(m);
+      b.addEventListener('click', function () {
+        if (answered) return;
+        setM = m; renderChips(); refreshSet();
+      });
+      box.appendChild(b);
+    });
+  }
+
+  function refreshSet() {
+    if (view === 'analog') {
+      $('hVal').textContent = setH;
+      showAnalog(setH, setM);
+    } else {
+      $('hVal').textContent = pad(setH24);
+      showDigital(setH24, setM);
+    }
+  }
+
+  function renderSetPrompt() {
+    var h24 = h24of(target);
+    setM = 0;
+    if (view === 'analog') {
+      $('question').textContent = 'Still klokka til';
+      $('bigTime').textContent = fmt(target.h, target.m);
+      $('bigTime').className = 'bigtime show';
+      $('hint').textContent = 'Vi sier: ' + say(target.h, target.m);
+      setH = nx(target.h);
+    } else {
+      $('question').textContent = 'Still klokka til ' + (target.m === 0 ? 'klokka ' + W[target.h] : say(target.h, target.m));
+      $('hint').textContent = cap(period(h24)) + '. Bruk 24-timersklokke.';
+      setH24 = (h24 + 5) % 24;
+    }
+    renderChips();
+    $('hourRow').style.display = view === 'analog' ? 'none' : '';
+    $('minChips').style.display = view === 'analog' ? 'none' : '';
+    $('dragTip').className = view === 'analog' ? 'dragtip show' : 'dragtip';
+    refreshSet();
+  }
+
+  $('hMinus').addEventListener('click', function () {
+    if (answered) return;
+    if (view === 'analog') setH = setH === 1 ? 12 : setH - 1;
+    else setH24 = setH24 === 0 ? 23 : setH24 - 1;
+    refreshSet();
+  });
+  $('hPlus').addEventListener('click', function () {
+    if (answered) return;
+    if (view === 'analog') setH = setH === 12 ? 1 : setH + 1;
+    else setH24 = setH24 === 23 ? 0 : setH24 + 1;
+    refreshSet();
+  });
+
+  $('checkSet').addEventListener('click', function () {
+    if (answered) return;
+    answered = true;
+    updateDragClass();
+    var ok, mine, right;
+    if (view === 'analog') {
+      ok = setH === target.h && setM === target.m;
+      mine = fmt(setH, setM); right = fmt(target.h, target.m);
+    } else {
+      ok = setH24 === h24of(target) && setM === target.m;
+      mine = fmt24(setH24, setM); right = fmt24(h24of(target), target.m);
+    }
+    registerResult(ok);
+    if (ok) {
+      feedback(true, praise() + '. ' + right + ' er ' + say(target.h, target.m) + '.');
+    } else {
+      feedback(false, 'Ikke helt. Du stilte ' + mine + '. Riktig er ' + right + '.');
+      setTimeout(function () {
+        if (view === 'analog') showAnalog(target.h, target.m);
+        else showDigital(h24of(target), target.m);
+      }, 900);
+    }
+  });
+
+  function nextQ() {
+    answered = false;
+    clearFeedback();
+    newTarget();
+    applyView();
+    $('bigTime').className = 'bigtime';
+    if (mode === 'read') {
+      readBox.style.display = 'grid';
+      setBox.className = 'setter';
+      if (view === 'analog') {
+        $('question').textContent = 'Hva er klokka?';
+        $('hint').textContent = 'Det er ' + periodRange(h24of(target)).noun + '. Les av viserne og velg riktig tid';
+        showAnalog(target.h, target.m);
+      } else {
+        $('question').textContent = 'Hva sier vi?';
+        $('hint').textContent = 'Les den digitale klokka og velg riktig måte å si det på';
+        showDigital(h24of(target), target.m);
+      }
+      renderRead();
+    } else {
+      readBox.style.display = 'none';
+      setBox.className = 'setter show';
+      renderSetPrompt();
+    }
+    updateDragClass();
+  }
+
+  var watchEl = $('watch');
+  var drag = null;
+  function dragEnabled() { return mode === 'set' && view === 'analog' && !answered; }
+  function updateDragClass() {
+    if (dragEnabled()) watchEl.classList.add('drag-on');
+    else { watchEl.classList.remove('drag-on'); watchEl.classList.remove('dragging'); drag = null; }
+  }
+  function svgPoint(e) {
+    var rect = watchEl.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) / rect.width * 320 - C,
+      y: (e.clientY - rect.top) / rect.height * 440 - CY
+    };
+  }
+  function dragTo(e) {
+    var p = svgPoint(e);
+    var a = Math.atan2(p.x, -p.y) * 180 / Math.PI;
+    if (a < 0) a += 360;
+    if (drag === 'm') {
+      setM = (Math.round(a / 30) * 5) % 60;
+    } else {
+      var rel = (((a - setM * 0.5) % 360) + 360) % 360;
+      var h = Math.round(rel / 30) % 12;
+      setH = h === 0 ? 12 : h;
+    }
+    refreshSet();
+  }
+  watchEl.addEventListener('pointerdown', function (e) {
+    if (!dragEnabled()) return;
+    var p = svgPoint(e);
+    var ha = ((setH % 12) * 30 + setM * 0.5) * Math.PI / 180;
+    var ma = setM * 6 * Math.PI / 180;
+    var dh = Math.hypot(p.x - 54 * Math.sin(ha), p.y + 54 * Math.cos(ha));
+    var dm = Math.hypot(p.x - 80 * Math.sin(ma), p.y + 80 * Math.cos(ma));
+    drag = dh < dm ? 'h' : 'm';
+    watchEl.classList.add('dragging');
+    try { watchEl.setPointerCapture(e.pointerId); } catch (err) {}
+    dragTo(e);
+    e.preventDefault();
+  });
+  watchEl.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    dragTo(e);
+    e.preventDefault();
+  });
+  function endDrag() { drag = null; watchEl.classList.remove('dragging'); }
+  watchEl.addEventListener('pointerup', endDrag);
+  watchEl.addEventListener('pointercancel', endDrag);
+
+  nextBtn.addEventListener('click', nextQ);
+
+  function setMode(m) {
+    mode = m;
+    $('modeRead').className = m === 'read' ? 'on' : '';
+    $('modeSet').className = m === 'set' ? 'on' : '';
+    nextQ();
+  }
+  function setView(v) {
+    view = v;
+    $('viewAnalog').className = v === 'analog' ? 'on' : '';
+    $('viewDigital').className = v === 'digital' ? 'on' : '';
+    nextQ();
+  }
+  $('modeRead').addEventListener('click', function () { setMode('read'); });
+  $('modeSet').addEventListener('click', function () { setMode('set'); });
+  $('viewAnalog').addEventListener('click', function () { setView('analog'); });
+  $('viewDigital').addEventListener('click', function () { setView('digital'); });
+
+  var lvBtns = document.querySelectorAll('#lv button');
+  for (var q = 0; q < lvBtns.length; q++) {
+    lvBtns[q].addEventListener('click', function () {
+      level = parseInt(this.getAttribute('data-l'), 10);
+      for (var z = 0; z < lvBtns.length; z++) lvBtns[z].className = lvBtns[z] === this ? 'on' : '';
+      nextQ();
+    });
+  }
+
+  nextQ();
+})();
+</script>
+</body>
+</html>
